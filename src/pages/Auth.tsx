@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Shield, Loader2, CheckCircle2,
-  Eye, EyeOff, ArrowRight, Lock, RefreshCw,
+  Eye, EyeOff, ArrowRight, Lock, RefreshCw, Phone,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { CaptchaInput } from '@/components/auth/CaptchaInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LanguageSelector } from '@/components/language/LanguageSelector';
+import { authOperations } from '@/lib/database';
 import { cn } from '@/lib/utils';
 
 // Generate random CAPTCHA code
@@ -25,7 +26,7 @@ const generateCaptcha = () => {
   return code;
 };
 
-type AuthMode = 'signin' | 'signup';
+type AuthMode = 'signin' | 'signup' | 'forgotPassword' | 'resetPassword';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -39,6 +40,9 @@ const Auth = () => {
 
   // Aadhar form
   const [aadharNumber, setAadharNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phoneLoading, setPhoneLoading] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -51,7 +55,6 @@ const Auth = () => {
   // CAPTCHA
   const [captchaCode, setCaptchaCode] = useState(generateCaptcha());
   const [captchaInput, setCaptchaInput] = useState('');
-  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -65,6 +68,42 @@ const Auth = () => {
       return () => clearTimeout(id);
     }
   }, [otpTimer]);
+
+  // Fetch phone number when Aadhaar number changes (12 digits)
+  useEffect(() => {
+    const fetchPhone = async () => {
+      if (aadharNumber.length === 12 && /^\d+$/.test(aadharNumber)) {
+        setPhoneLoading(true);
+        try {
+          const result = await authOperations.getPhoneByAadhaar(aadharNumber);
+          if (result.exists) {
+            // Only set phone if it exists in the database
+            if (result.phone) {
+              setPhone(result.phone);
+            }
+            // Only set email if it exists in the database
+            if (result.email) {
+              setEmail(result.email);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching phone:', err);
+        } finally {
+          setPhoneLoading(false);
+        }
+      } else {
+        // Only clear if not in signup mode with fetched phone
+        if (mode !== 'signup') {
+          setPhone('');
+          setEmail('');
+        }
+      }
+    };
+    
+    // Debounce the fetch
+    const timer = setTimeout(fetchPhone, 500);
+    return () => clearTimeout(timer);
+  }, [aadharNumber]);
 
   const handleSubmit = async () => {
     setError('');
@@ -89,7 +128,6 @@ const Auth = () => {
     if (captchaInput.toUpperCase() !== captchaCode) {
       setError('Incorrect CAPTCHA. Please try again.');
       setCaptchaInput('');
-      // Generate new CAPTCHA for next attempt
       setCaptchaCode(generateCaptcha());
       return;
     }
@@ -98,14 +136,14 @@ const Auth = () => {
     try {
       // For signup, send OTP first
       if (mode === 'signup') {
-        await sendOtp(aadharNumber, 'sms');
+        await sendOtp(aadharNumber, 'sms', 'mobile_verification');
         setOtpSent(true);
-        setOtpTimer(30);
+        setOtpTimer(120);
       } else {
         // For signin, verify credentials
         const ok = await login(aadharNumber, password);
         if (ok) {
-          navigate('/home', { replace: true });
+          navigate('/', { replace: true });
         } else {
           setError('Invalid Aadhar number or password');
         }
@@ -120,12 +158,34 @@ const Auth = () => {
     setError('');
     setLoading(true);
     
-    const ok = await verifyOtp(otp, aadharNumber);
+    const ok = await verifyOtp(otp, aadharNumber, 'mobile_verification');
     if (ok) {
-      // Create account after OTP verification
-      await signup(aadharNumber, password);
+      // Use the phone from database - do NOT use any fallback
+      const phoneToUse = phone;
+      const emailToUse = email;
+
+      if (!phoneToUse) {
+        setError('No phone number found. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
+      await signup(
+        aadharNumber, 
+        password,
+        emailToUse || `${aadharNumber}@example.com`,
+        phoneToUse,
+        {
+          fullName: '',
+          dateOfBirth: '',
+          gender: '',
+          address: '',
+          state: '',
+          pincode: ''
+        }
+      );
       setVerified(true);
-      setTimeout(() => navigate('/home'), 1500);
+      setTimeout(() => navigate('/'), 1500);
     } else {
       setError('Invalid OTP. Use 123456 for demo.');
     }
@@ -135,8 +195,8 @@ const Auth = () => {
   const handleResendOtp = async () => {
     setError('');
     setLoading(true);
-    await sendOtp(aadharNumber, 'sms');
-    setOtpTimer(30);
+    await sendOtp(aadharNumber, 'sms', 'mobile_verification');
+    setOtpTimer(120);
     setLoading(false);
   };
 
@@ -179,7 +239,20 @@ const Auth = () => {
 
       {/* Language selector */}
       <div className="absolute top-4 right-4 z-20">
-        <LanguageSelector />
+        <style>{`
+          .auth-language-selector button {
+            color: white !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+            background-color: rgba(255, 255, 255, 0.1) !important;
+          }
+          .auth-language-selector button:hover {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(255, 255, 255, 0.5) !important;
+          }
+        `}</style>
+        <div className="auth-language-selector">
+          <LanguageSelector />
+        </div>
       </div>
 
       {/* Left branding (desktop) */}
@@ -278,6 +351,52 @@ const Auth = () => {
                   <p className="text-xs text-muted-foreground mt-1">Enter your 12-digit Aadhar number</p>
                 </div>
 
+                {/* Phone Number (auto-filled from database) - Only for signup */}
+                {mode === 'signup' && (
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1.5 block">
+                      <Phone className="w-4 h-4 inline mr-1" />
+                      Mobile Number
+                    </label>
+                    <div className="relative">
+                      {phoneLoading ? (
+                        <Input 
+                          type="text" 
+                          placeholder="Fetching mobile number..." 
+                          disabled
+                          className="bg-muted"
+                        />
+                      ) : (
+                        <Input 
+                          type="text" 
+                          value={phone}
+                          readOnly
+                          placeholder="Enter Aadhaar number to fetch mobile"
+                        />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {phoneLoading ? 'Fetching from database...' : phone ? 'Mobile number fetched from your Aadhaar record' : 'Mobile number will be fetched from your Aadhaar'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Email for signup */}
+                {mode === 'signup' && (
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-1.5 block">
+                      Email Address
+                    </label>
+                    <Input 
+                      type="email" 
+                      placeholder="your@email.com" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Enter your email address</p>
+                  </div>
+                )}
+
                 {/* Password */}
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block">
@@ -329,7 +448,7 @@ const Auth = () => {
                   className="w-full"
                   size="lg"
                   onClick={handleSubmit}
-                  disabled={loading || !aadharNumber || !password || (mode === 'signup' && !confirmPassword) || !captchaInput}
+                  disabled={loading || !aadharNumber || !password || (mode === 'signup' && (!confirmPassword || phoneLoading)) || !captchaInput}
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
                   {mode === 'signin' ? t('auth.signIn') : t('auth.signUp')}
@@ -349,6 +468,11 @@ const Auth = () => {
                   <p className="text-xs text-muted-foreground">
                     Aadhar: <span className="font-mono font-bold text-foreground">{aadharNumber}</span>
                   </p>
+                  {phone && (
+                    <p className="text-xs text-muted-foreground">
+                      Phone: <span className="font-mono font-bold text-foreground">{phone}</span>
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-2">
                     {t('auth.demoOtpInstruction')} <span className="font-mono font-bold text-foreground">123456</span>
                   </p>
@@ -364,14 +488,17 @@ const Auth = () => {
                   </InputOTP>
                 </div>
 
-                {/* Timer */}
+                {/* Timer - Updated to show 2 minutes in MM:SS format */}
                 <div className="text-center">
                   {otpTimer > 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      OTP expires in <span className="font-bold text-foreground">{otpTimer}s</span>
+                      OTP expires in <span className="font-bold text-foreground">
+                        {otpTimer >= 60 ? `${Math.floor(otpTimer / 60)}:${(otpTimer % 60).toString().padStart(2, '0')}` : `${otpTimer}s`}
+                      </span>
                     </p>
                   ) : (
                     <Button variant="ghost" size="sm" onClick={handleResendOtp} disabled={loading}>
+                      <RefreshCw className="w-4 h-4 mr-1" />
                       {t('auth.resendOtp')}
                     </Button>
                   )}
@@ -396,15 +523,35 @@ const Auth = () => {
             )}
 
             {/* Footer */}
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                {mode === 'signin' ? t('auth.noAccount') : t('auth.hasAccount')}{' '}
+            <div className="mt-6 text-center space-y-2">
+              {mode === 'signin' && (
                 <button
-                  className="text-primary font-medium hover:underline"
-                  onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setOtpSent(false); }}
+                  className="text-sm text-primary font-medium hover:underline block w-full"
+                  onClick={() => { setMode('forgotPassword'); setError(''); setOtpSent(false); }}
                 >
-                  {mode === 'signin' ? t('auth.signUp') : t('auth.signIn')}
+                  Forgot Password?
                 </button>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {mode === 'signin' ? t('auth.noAccount') : mode === 'forgotPassword' || mode === 'resetPassword' ? (
+                  <>
+                    Remember your password?{' '}
+                    <button
+                      className="text-primary font-medium hover:underline"
+                      onClick={() => { setMode('signin'); setError(''); setOtpSent(false); }}
+                    >
+                      Sign In
+                    </button>
+                  </>
+                ) : t('auth.hasAccount')}{' '}
+                {mode !== 'forgotPassword' && mode !== 'resetPassword' && (
+                  <button
+                    className="text-primary font-medium hover:underline"
+                    onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setOtpSent(false); }}
+                  >
+                    {mode === 'signin' ? t('auth.signUp') : t('auth.signIn')}
+                  </button>
+                )}
               </p>
             </div>
 

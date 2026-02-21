@@ -9,10 +9,6 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import AdminAuth from "./pages/AdminAuth";
-import Admin from "./pages/Admin";
-import CenterAuth from "./pages/CenterAuth";
-import LoginSelection from "./pages/LoginSelection";
 import Dashboard from "./pages/Dashboard";
 import BookSlot from "./pages/BookSlot";
 import FraudAnalytics from "./pages/FraudAnalytics";
@@ -32,16 +28,8 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/" element={<LoginSelection />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/admin" element={<AdminAuth />} />
-                <Route path="/admin-panel" element={<Admin />} />
-                <Route path="/admin/dashboard" element={<NotFound />} />
-                <Route path="/admin/requests" element={<NotFound />} />
-                <Route path="/admin/centers" element={<NotFound />} />
-                <Route path="/admin/fraud" element={<NotFound />} />
-                <Route path="/center" element={<CenterAuth />} />
-                <Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/book-slot" element={<ProtectedRoute><BookSlot /></ProtectedRoute>} />
                 <Route path="/fraud-analytics" element={<ProtectedRoute><FraudAnalytics /></ProtectedRoute>} />

@@ -15,9 +15,13 @@ export function LanguageSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-2 font-semibold border-2 hover:bg-primary/10 hover:border-primary hover:text-primary transition-all duration-200"
+        >
           <Globe className="w-4 h-4" />
-          <span className="hidden sm:inline">{languageNames[language]}</span>
+          <span>{languageNames[language]}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
