@@ -17,11 +17,14 @@ import { ChevronLeft, ChevronRight, Check, Calendar, MapPin, FileEdit, Bot, Spar
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 type Step = 'center' | 'update' | 'slot' | 'confirm' | 'online';
 
 const BookSlot = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { addAppointment } = useUser();
   const [currentStep, setCurrentStep] = useState<Step>('update');
   const [selectedCenter, setSelectedCenter] = useState<Center | null>(null);
   const [selectedType, setSelectedType] = useState<UpdateType | null>(null);
@@ -144,10 +147,19 @@ const steps = getSteps();
       } else {
         setCurrentStep('slot');
       }
-    } else if (currentStep === 'slot' && selectedSlot) {
+} else if (currentStep === 'slot' && selectedSlot) {
       // Generate booking ID and confirm
       const id = `ADH${Date.now().toString(36).toUpperCase()}`;
       setBookingId(id);
+      
+      // Add appointment to user context
+      addAppointment({
+        center: selectedCenter!,
+        slot: selectedSlot,
+        updateType: selectedType!,
+        autoBooked: false,
+      });
+      
       setIsBooked(true);
     }
   };
