@@ -105,7 +105,7 @@ const Auth = () => {
         // For signin, verify credentials
         const ok = await login(aadharNumber, password);
         if (ok) {
-          navigate('/', { replace: true });
+          navigate('/home', { replace: true });
         } else {
           setError('Invalid Aadhar number or password');
         }
@@ -125,7 +125,7 @@ const Auth = () => {
       // Create account after OTP verification
       await signup(aadharNumber, password);
       setVerified(true);
-      setTimeout(() => navigate('/'), 1500);
+      setTimeout(() => navigate('/home'), 1500);
     } else {
       setError('Invalid OTP. Use 123456 for demo.');
     }

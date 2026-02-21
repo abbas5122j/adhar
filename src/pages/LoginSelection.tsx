@@ -34,7 +34,7 @@ const loginOptions = [
   },
   {
     id: 'center',
-    title: 'Center Login',
+    title: 'Service Center Login',
     description: 'For enrollment center operators to manage bookings and serve citizens',
     icon: Users,
     href: '/center',

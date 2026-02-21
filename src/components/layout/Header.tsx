@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Shield, Calendar, BarChart3, AlertTriangle, User, ClipboardList, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { LanguageSelector } from '@/components/language/LanguageSelector';
 
 const navLinks = [
-  { href: '/', labelKey: 'nav.home', icon: Shield },
+  { href: '/home', labelKey: 'nav.home', icon: Shield },
   { href: '/dashboard', labelKey: 'nav.dashboard', icon: BarChart3 },
   { href: '/book-slot', labelKey: 'nav.bookSlot', icon: Calendar },
   { href: '/tracking', labelKey: 'nav.tracking', icon: ClipboardList },
@@ -22,13 +22,19 @@ export function Header() {
   const location = useLocation();
   const { logout } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border/50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/home" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
               <Shield className="w-6 h-6 text-primary-foreground" />
             </div>
@@ -69,7 +75,7 @@ export function Header() {
                 {t('nav.bookNow')}
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground hover:text-destructive">
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-destructive">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -123,7 +129,7 @@ export function Header() {
                   {t('nav.bookNow')}
                 </Button>
               </Link>
-              <Button variant="ghost" className="w-full justify-start text-destructive mt-1" onClick={logout}>
+              <Button variant="ghost" className="w-full justify-start text-destructive mt-1" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 {t('auth.logout')}
               </Button>
