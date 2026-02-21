@@ -131,9 +131,9 @@ const BookSlot = () => {
     ];
   };
 
-  const steps = getSteps();
+const steps = getSteps();
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 'update' && selectedType) {
       // All updates require face scan verification for security
       setShowFaceScan(true);
